@@ -204,7 +204,7 @@ cpdef calculate_position_tracker_stats(positions, PositionStats stats):
 
         if type(position.asset) is Future:
             # Futures don't have an inherent position value.
-            value = 0
+            value = 0.
 
             # unchecked cast, this is safe because we do a type check above
             exposure *= position.asset.price_multiplier
