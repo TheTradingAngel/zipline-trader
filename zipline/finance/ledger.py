@@ -105,7 +105,7 @@ class PositionTracker(object):
 
         position.update(txn)
 
-        if position.amount == 0:
+        if abs(position.amount) < 1e-3:  # To catch float rounding errors
             del self.positions[asset]
 
             try:

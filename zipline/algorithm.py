@@ -54,6 +54,8 @@ from zipline.errors import (
     UnsupportedCancelPolicy,
     UnsupportedDatetimeFormat,
     UnsupportedOrderParameters,
+    UnsupportedOrderRounding,
+    SetOrderRoundingPostInit,
     ZeroCapitalError
 )
 from zipline.finance.blotter import SimulationBlotter
@@ -74,6 +76,7 @@ from zipline.finance.execution import (
 )
 from zipline.finance.asset_restrictions import Restrictions
 from zipline.finance.cancel_policy import NeverCancel, CancelPolicy
+from zipline.finance.rounding import OrderRounding, FullSharesRounding
 from zipline.finance.asset_restrictions import (
     NoRestrictions,
     StaticRestrictions,
@@ -333,6 +336,8 @@ class TradingAlgorithm(object):
             cancel_policy = cancel_policy or NeverCancel()
             blotter_class = blotter_class or SimulationBlotter
             self.blotter = blotter_class(cancel_policy=cancel_policy)
+
+        self.order_rounding = FullSharesRounding()
 
         # The symbol lookup date specifies the date to use when resolving
         # symbols to sids, and can be set using set_symbol_lookup_date()
@@ -1328,8 +1333,7 @@ class TradingAlgorithm(object):
                                                         style)
         return amount, style
 
-    @staticmethod
-    def round_order(amount):
+    def round_order(self, amount):
         """
         Convert number of shares to an integer.
 
@@ -1338,7 +1342,7 @@ class TradingAlgorithm(object):
 
         E.g. 3.9999 -> 4.0; 5.5 -> 5.0; -5.5 -> -5.0
         """
-        return int(round_if_near_integer(amount))
+        return self.order_rounding.round_order(amount)
 
     def validate_order_params(self,
                               asset,
@@ -1632,6 +1636,23 @@ class TradingAlgorithm(object):
             raise SetCancelPolicyPostInit()
 
         self.blotter.cancel_policy = cancel_policy
+
+    @api_method
+    def set_order_rounding(self, order_rounding):
+        """Sets the order rounding logic for simulation and live trading.
+
+        Parameters
+        ----------
+        order_rounding : OrderRounding
+            The order rounder to use
+        """
+        if not isinstance(order_rounding, OrderRounding):
+            raise UnsupportedOrderRounding()
+
+        if self.initialized:
+            raise SetOrderRoundingPostInit()
+
+        self.order_rounding = order_rounding
 
     @api_method
     def set_symbol_lookup_date(self, dt):

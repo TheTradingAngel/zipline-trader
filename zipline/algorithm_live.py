@@ -60,7 +60,7 @@ class LiveTradingAlgorithm(TradingAlgorithm):
         # perf tracker remember the context variables and the past performance
         # and need to be whitelisted
         self._context_persistence_blacklist = ['trading_client']
-        self._context_persistence_whitelist = ['initialized', 'perf_tracker']
+        self._context_persistence_whitelist = ['initialized', 'perf_tracker', 'order_rounding']
         self._context_persistence_excludes = []
 
         # blotter is always initialized to SimulationBlotter in run_algo.py.

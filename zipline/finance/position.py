@@ -47,7 +47,7 @@ class Position(object):
 
     def __init__(self,
                  asset,
-                 amount=0,
+                 amount=0.,
                  cost_basis=0.0,
                  last_sale_price=0.0,
                  last_sale_date=None):

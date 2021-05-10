@@ -119,6 +119,15 @@ You may only call 'set_cancel_policy' in your initialize method.
 """.strip()
 
 
+class SetOrderRoundingPostInit(ZiplineError):
+    # Raised if a users script calls set_order_rounding
+    # after the initialize method has returned.
+    msg = """
+You attempted to set the order rounding outside of `initialize`. \
+You may only call 'set_order_rounding' in your initialize method.
+""".strip()
+
+
 class RegisterTradingControlPostInit(ZiplineError):
     # Raised if a user's script register's a trading control after initialize
     # has been run.
@@ -168,6 +177,17 @@ class UnsupportedCancelPolicy(ZiplineError):
     msg = """
 You attempted to set the cancel policy with an unsupported class.  Please use
 an instance of CancelPolicy.
+""".strip()
+
+
+class UnsupportedOrderRounding(ZiplineError):
+    """
+    Raised if a user script calls set_order_rounding with an object that isn't
+    an OrderRounding.
+    """
+    msg = """
+You attempted to set the order rounding with an unsupported class.  Please use
+an instance of OrderRounding.
 """.strip()
 
 
