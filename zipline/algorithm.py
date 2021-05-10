@@ -1274,7 +1274,7 @@ class TradingAlgorithm(object):
         ----------
         asset : Asset
             The asset to be ordered.
-        amount : int
+        amount : float
             The amount of shares to order. If ``amount`` is positive, this is
             the number of shares to buy or cover. If ``amount`` is negative,
             this is the number of shares to sell or short.
@@ -1753,7 +1753,7 @@ class TradingAlgorithm(object):
         ----------
         asset : Asset
             The asset that this order is for.
-        target : int
+        target : float
             The desired number of shares of ``asset``.
         limit_price : float, optional
             The limit price for the order.
