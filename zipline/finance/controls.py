@@ -305,7 +305,7 @@ class LongOnly(TradingControl):
         Fail if we would hold negative shares of asset after completing this
         order.
         """
-        if portfolio.positions[asset].amount + amount < 0:
+        if portfolio.positions[asset].amount + amount + 1e-4 < 0:
             self.handle_violation(asset, amount, algo_datetime)
 
 
