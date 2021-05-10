@@ -33,3 +33,22 @@ This project is meant to be used for backtesting/paper/live trading with one the
 Please `Read The Docs <https://zipline-trader.readthedocs.io/en/latest/index.html#>`_
 
 And you could find us on `slack <https://join.slack.com/t/zipline-live/shared_invite/zt-mrsrfhky-usB0SEU4st1SuMUCErUevA>`_
+
+Zipline Trader Modifications
+================
+
+Zipline Trader has been modified in the following ways:
+
+- Support for fractional shares
+- Correction of order fill behavior for stop-limit orders
+- Support for setting exit stop loss and take profit levels on the position
+
+Installation for development
+----------------------------
+
+.. code-block:: bash
+
+    conda create --name zipline_dev python=3.6
+    conda activate zipline_dev
+    conda install -c conda-forge bcolz=1.2.1 psycopg2=2.8.6 numpy scipy h5py=2.10.0
+    pip install -e .
