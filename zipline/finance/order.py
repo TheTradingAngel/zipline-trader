@@ -44,11 +44,12 @@ class Order(object):
     # to cut down on the memory footprint of this object.
     __slots__ = ["id", "dt", "reason", "created", "asset", "amount", "filled",
                  "commission", "_status", "stop", "limit", "stop_reached",
-                 "limit_reached", "direction", "type", "broker_order_id"]
+                 "limit_reached", "direction", "type", "broker_order_id",
+                 "exit_take_profit_price", "exit_stop_loss_price"]
 
     @expect_types(asset=Asset)
     def __init__(self, dt, asset, amount, stop=None, limit=None, filled=0,
-                 commission=0, id=None):
+                 commission=0, id=None, exit_take_profit_price=None, exit_stop_loss_price=None):
         """
         @dt - datetime.datetime that the order was placed
         @asset - asset for the order.
@@ -75,6 +76,8 @@ class Order(object):
         self.direction = math.copysign(1, self.amount)
         self.type = zp.DATASOURCE_TYPE.ORDER
         self.broker_order_id = None
+        self.exit_take_profit_price = exit_take_profit_price
+        self.exit_stop_loss_price = exit_stop_loss_price
 
     @staticmethod
     def make_id():
@@ -197,6 +200,12 @@ class Order(object):
 
         if self.stop is not None:
             self.stop = round(self.stop * ratio, 2)
+
+        if self.exit_take_profit_price is not None:
+            self.exit_take_profit_price = round(self.exit_take_profit_price * ratio, 2)
+
+        if self.exit_stop_loss_price is not None:
+            self.exit_stop_loss_price = round(self.exit_stop_loss_price * ratio, 2)
 
     @property
     def status(self):

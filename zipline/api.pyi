@@ -240,7 +240,8 @@ def history(bar_count, frequency, field, ffill=True):
     """DEPRECATED: use ``data.history`` instead.
     """
 
-def order(asset, amount, limit_price=None, stop_price=None, style=None):
+def order(asset, amount, limit_price=None, stop_price=None, style=None, exit_take_profit_price=None,
+          exit_stop_loss_price=None):
     """Place an order for a fixed number of shares.
 
     Parameters
@@ -257,6 +258,10 @@ def order(asset, amount, limit_price=None, stop_price=None, style=None):
         The stop price for the order.
     style : ExecutionStyle, optional
         The execution style for the order.
+    exit_take_profit_price: float, optional
+        Set the T/P price after filling the order.
+    exit_stop_loss_price: float, optional
+        Set the S/L price after filling the order.
 
     Returns
     -------
@@ -281,7 +286,8 @@ def order(asset, amount, limit_price=None, stop_price=None, style=None):
     :func:`zipline.api.order_percent`
     """
 
-def order_percent(asset, percent, limit_price=None, stop_price=None, style=None):
+def order_percent(asset, percent, limit_price=None, stop_price=None, style=None, exit_take_profit_price=None,
+                  exit_stop_loss_price=None):
     """Place an order in the specified asset corresponding to the given
     percent of the current portfolio value.
 
@@ -298,6 +304,10 @@ def order_percent(asset, percent, limit_price=None, stop_price=None, style=None)
         The stop price for the order.
     style : ExecutionStyle
         The execution style for the order.
+    exit_take_profit_price: float, optional
+        Set the T/P price after filling the order.
+    exit_stop_loss_price: float, optional
+        Set the S/L price after filling the order.
 
     Returns
     -------
@@ -316,7 +326,8 @@ def order_percent(asset, percent, limit_price=None, stop_price=None, style=None)
     :func:`zipline.api.order_value`
     """
 
-def order_target(asset, target, limit_price=None, stop_price=None, style=None):
+def order_target(asset, target, limit_price=None, stop_price=None, style=None, exit_take_profit_price=None,
+                 exit_stop_loss_price=None):
     """Place an order to adjust a position to a target number of shares. If
     the position doesn't already exist, this is equivalent to placing a new
     order. If the position does exist, this is equivalent to placing an
@@ -335,6 +346,10 @@ def order_target(asset, target, limit_price=None, stop_price=None, style=None):
         The stop price for the order.
     style : ExecutionStyle
         The execution style for the order.
+    exit_take_profit_price: float, optional
+        Set the T/P price after filling the order.
+    exit_stop_loss_price: float, optional
+        Set the S/L price after filling the order.
 
     Returns
     -------
@@ -367,7 +382,8 @@ def order_target(asset, target, limit_price=None, stop_price=None, style=None):
     :func:`zipline.api.order_target_value`
     """
 
-def order_target_percent(asset, target, limit_price=None, stop_price=None, style=None):
+def order_target_percent(asset, target, limit_price=None, stop_price=None, style=None, exit_take_profit_price=None,
+                         exit_stop_loss_price=None):
     """Place an order to adjust a position to a target percent of the
     current portfolio value. If the position doesn't already exist, this is
     equivalent to placing a new order. If the position does exist, this is
@@ -388,6 +404,10 @@ def order_target_percent(asset, target, limit_price=None, stop_price=None, style
         The stop price for the order.
     style : ExecutionStyle
         The execution style for the order.
+    exit_take_profit_price: float, optional
+        Set the T/P price after filling the order.
+    exit_stop_loss_price: float, optional
+        Set the S/L price after filling the order.
 
     Returns
     -------
@@ -419,7 +439,8 @@ def order_target_percent(asset, target, limit_price=None, stop_price=None, style
     :func:`zipline.api.order_target_value`
     """
 
-def order_target_value(asset, target, limit_price=None, stop_price=None, style=None):
+def order_target_value(asset, target, limit_price=None, stop_price=None, style=None, exit_take_profit_price=None,
+                       exit_stop_loss_price=None):
     """Place an order to adjust a position to a target value. If
     the position doesn't already exist, this is equivalent to placing a new
     order. If the position does exist, this is equivalent to placing an
@@ -440,6 +461,10 @@ def order_target_value(asset, target, limit_price=None, stop_price=None, style=N
         The stop price for the order.
     style : ExecutionStyle
         The execution style for the order.
+    exit_take_profit_price: float, optional
+        Set the T/P price after filling the order.
+    exit_stop_loss_price: float, optional
+        Set the S/L price after filling the order.
 
     Returns
     -------
@@ -471,7 +496,8 @@ def order_target_value(asset, target, limit_price=None, stop_price=None, style=N
     :func:`zipline.api.order_target_percent`
     """
 
-def order_value(asset, value, limit_price=None, stop_price=None, style=None):
+def order_value(asset, value, limit_price=None, stop_price=None, style=None, exit_take_profit_price=None,
+                exit_stop_loss_price=None):
     """Place an order for a fixed amount of money.
 
     Equivalent to ``order(asset, value / data.current(asset, 'price'))``.
@@ -489,6 +515,10 @@ def order_value(asset, value, limit_price=None, stop_price=None, style=None):
         Stop price for the order.
     style : ExecutionStyle
         The execution style for the order.
+    exit_take_profit_price: float, optional
+        Set the T/P price after filling the order.
+    exit_stop_loss_price: float, optional
+        Set the S/L price after filling the order.
 
     Returns
     -------
@@ -505,6 +535,22 @@ def order_value(asset, value, limit_price=None, stop_price=None, style=None):
     :class:`zipline.finance.execution.ExecutionStyle`
     :func:`zipline.api.order`
     :func:`zipline.api.order_percent`
+    """
+
+def update_exit_prices(asset: Asset, take_profit_price=None, stop_loss_price=None):
+    """
+    Update the exit prices for a given asset where a position already exists.
+
+    Parameters
+    ----------
+    asset : Asset
+        The asset of which the position exit prices are modified.
+    take_profit_price : float, optional
+        Set the take-profit (T/P) price: a better price (higher if long) than the current price at which to exit
+            the position. Set to 0 to unset the T/P.
+    stop_loss_price : float, optional
+        Set the stop-loss (S/L) price: a worse price (lower if long) than the current price at which to exit
+            the position. Set to 0 to unset the S/L.
     """
 
 def pipeline_output(name):

@@ -24,6 +24,7 @@ class Blotter(with_metaclass(ABCMeta)):
     def __init__(self, cancel_policy=None):
         self.cancel_policy = cancel_policy if cancel_policy else NeverCancel()
         self.current_dt = None
+        self.metrics_tracker = None
 
     def set_date(self, dt):
         self.current_dt = dt

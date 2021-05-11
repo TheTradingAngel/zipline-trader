@@ -258,6 +258,10 @@ class LiveTradingAlgorithm(TradingAlgorithm):
                                                                tradeable_asset['end_date']))
         return asset.from_dict(tradeable_asset)
 
+    @api_method
+    def update_exit_prices(self, asset, take_profit_price=None, stop_loss_price=None):
+        self.broker.update_exit_prices(asset, take_profit_price=take_profit_price, stop_loss_price=stop_loss_price)
+
     def run(self, *args, **kwargs):
         daily_stats = super(self.__class__, self).run(*args, **kwargs)
         self.on_exit()

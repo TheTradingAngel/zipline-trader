@@ -713,6 +713,9 @@ class IBBroker(Broker):
             return None
 
     def order(self, asset, amount, style):
+        if style.exit_take_profit_price is not None or style.exit_stop_loss_price is not None:
+            raise NotImplementedError('Order exit T/P or S/L prices support not implemented (IBKR)!')
+
         contract = Contract()
         contract.m_symbol = str(asset.symbol)
         contract.m_currency = self.currency
@@ -760,6 +763,9 @@ class IBBroker(Broker):
         self._tws.placeOrder(ib_order_id, contract, order)
 
         return zp_order
+
+    def update_exit_prices(self, asset, take_profit_price=None, stop_loss_price=None):
+        raise NotImplementedError('Support for position exit prices not implemented (IBKR)!')
 
     @property
     def orders(self):

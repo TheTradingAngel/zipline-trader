@@ -124,6 +124,9 @@ class ALPACABroker(Broker):
         return uuid.uuid4().hex
 
     def order(self, asset, amount, style):
+        if style.exit_take_profit_price is not None or style.exit_stop_loss_price is not None:
+            raise NotImplementedError('Order exit T/P or S/L prices support not implemented (Alpaca)!')
+
         symbol = asset.symbol
         qty = amount if amount > 0 else -amount
         side = 'buy' if amount > 0 else 'sell'
@@ -163,6 +166,9 @@ class ALPACABroker(Broker):
         )
         zp_order = self._order2zp(order)
         return zp_order
+
+    def update_exit_prices(self, asset, take_profit_price=None, stop_loss_price=None):
+        raise NotImplementedError('Support for position exit prices not implemented (Alpaca)!')
 
     @property
     def orders(self):

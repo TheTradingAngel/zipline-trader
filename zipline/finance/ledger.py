@@ -64,7 +64,9 @@ class PositionTracker(object):
                         amount=None,
                         last_sale_price=None,
                         last_sale_date=None,
-                        cost_basis=None):
+                        cost_basis=None,
+                        take_profit_price=None,
+                        stop_loss_price=None):
         self._dirty_stats = True
 
         if asset not in self.positions:
@@ -81,6 +83,10 @@ class PositionTracker(object):
             position.last_sale_date = last_sale_date
         if cost_basis is not None:
             position.cost_basis = cost_basis
+        if take_profit_price is not None:
+            position.take_profit_price = take_profit_price
+        if stop_loss_price is not None:
+            position.stop_loss_price = stop_loss_price
 
         if position.amount == 0:
             del self.positions[asset]
@@ -114,6 +120,11 @@ class PositionTracker(object):
                 del self._positions_store[asset]
             except KeyError:
                 pass
+
+    def update_exit_prices(self, asset, take_profit_price=None, stop_loss_price=None):
+        if asset in self.positions:
+            self.positions[asset].update_exit_prices(
+                take_profit_price=take_profit_price, stop_loss_price=stop_loss_price)
 
     def handle_commission(self, asset, cost):
         # Adjust the cost basis of the stock if we own it

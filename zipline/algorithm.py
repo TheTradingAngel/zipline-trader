@@ -465,6 +465,9 @@ class TradingAlgorithm(object):
         if hasattr(self, "broker"):
             # we are live, we need to updated our portfolio from the broker before we start
             self.broker.positions
+
+        self.blotter.metrics_tracker = self.metrics_tracker
+
         if self._before_trading_start is None:
             return
 
@@ -1267,7 +1270,9 @@ class TradingAlgorithm(object):
               amount,
               limit_price=None,
               stop_price=None,
-              style=None):
+              style=None,
+              exit_take_profit_price=None,
+              exit_stop_loss_price=None):
         """Place an order for a fixed number of shares.
 
         Parameters
@@ -1284,6 +1289,10 @@ class TradingAlgorithm(object):
             The stop price for the order.
         style : ExecutionStyle, optional
             The execution style for the order.
+        exit_take_profit_price: float, optional
+            Set the T/P price after filling the order.
+        exit_stop_loss_price: float, optional
+            Set the S/L price after filling the order.
 
         Returns
         -------
@@ -1312,6 +1321,7 @@ class TradingAlgorithm(object):
 
         amount, style = self._calculate_order(asset, amount,
                                               limit_price, stop_price, style)
+        style.set_exit_prices(exit_take_profit_price=exit_take_profit_price, exit_stop_loss_price=exit_stop_loss_price)
         return self.blotter.order(asset, amount, style)
 
     def _calculate_order(self, asset, amount,
@@ -1410,7 +1420,9 @@ class TradingAlgorithm(object):
                     value,
                     limit_price=None,
                     stop_price=None,
-                    style=None):
+                    style=None,
+                    exit_take_profit_price=None,
+                    exit_stop_loss_price=None):
         """
         Place an order for a fixed amount of money.
 
@@ -1429,6 +1441,10 @@ class TradingAlgorithm(object):
             Stop price for the order.
         style : ExecutionStyle
             The execution style for the order.
+        exit_take_profit_price: float, optional
+            Set the T/P price after filling the order.
+        exit_stop_loss_price: float, optional
+            Set the S/L price after filling the order.
 
         Returns
         -------
@@ -1453,7 +1469,28 @@ class TradingAlgorithm(object):
         return self.order(asset, amount,
                           limit_price=limit_price,
                           stop_price=stop_price,
-                          style=style)
+                          style=style,
+                          exit_take_profit_price=exit_take_profit_price,
+                          exit_stop_loss_price=exit_stop_loss_price)
+
+    @api_method
+    def update_exit_prices(self, asset: Asset, take_profit_price=None, stop_loss_price=None):
+        """
+        Update the exit prices for a given asset where a position already exists.
+
+        Parameters
+        ----------
+        asset : Asset
+            The asset of which the position exit prices are modified.
+        take_profit_price : float, optional
+            Set the take-profit (T/P) price: a better price (higher if long) than the current price at which to exit
+                the position. Set to 0 to unset the T/P.
+        stop_loss_price : float, optional
+            Set the stop-loss (S/L) price: a worse price (lower if long) than the current price at which to exit
+                the position. Set to 0 to unset the S/L.
+        """
+        self.metrics_tracker.update_exit_prices(
+            asset, take_profit_price=take_profit_price, stop_loss_price=stop_loss_price)
 
     @property
     def recorded_vars(self):
@@ -1688,7 +1725,9 @@ class TradingAlgorithm(object):
                       percent,
                       limit_price=None,
                       stop_price=None,
-                      style=None):
+                      style=None,
+                      exit_take_profit_price=None,
+                      exit_stop_loss_price=None):
         """Place an order in the specified asset corresponding to the given
         percent of the current portfolio value.
 
@@ -1705,6 +1744,10 @@ class TradingAlgorithm(object):
             The stop price for the order.
         style : ExecutionStyle
             The execution style for the order.
+        exit_take_profit_price: float, optional
+            Set the T/P price after filling the order.
+        exit_stop_loss_price: float, optional
+            Set the S/L price after filling the order.
 
         Returns
         -------
@@ -1729,7 +1772,9 @@ class TradingAlgorithm(object):
         return self.order(asset, amount,
                           limit_price=limit_price,
                           stop_price=stop_price,
-                          style=style)
+                          style=style,
+                          exit_take_profit_price=exit_take_profit_price,
+                          exit_stop_loss_price=exit_stop_loss_price)
 
     def _calculate_order_percent_amount(self, asset, percent):
         value = self.portfolio.portfolio_value * percent
@@ -1742,7 +1787,9 @@ class TradingAlgorithm(object):
                      target,
                      limit_price=None,
                      stop_price=None,
-                     style=None):
+                     style=None,
+                     exit_take_profit_price=None,
+                     exit_stop_loss_price=None):
         """Place an order to adjust a position to a target number of shares. If
         the position doesn't already exist, this is equivalent to placing a new
         order. If the position does exist, this is equivalent to placing an
@@ -1761,6 +1808,10 @@ class TradingAlgorithm(object):
             The stop price for the order.
         style : ExecutionStyle
             The execution style for the order.
+        exit_take_profit_price: float, optional
+            Set the T/P price after filling the order.
+        exit_stop_loss_price: float, optional
+            Set the S/L price after filling the order.
 
         Returns
         -------
@@ -1799,7 +1850,9 @@ class TradingAlgorithm(object):
         return self.order(asset, amount,
                           limit_price=limit_price,
                           stop_price=stop_price,
-                          style=style)
+                          style=style,
+                          exit_take_profit_price=exit_take_profit_price,
+                          exit_stop_loss_price=exit_stop_loss_price)
 
     def _calculate_order_target_amount(self, asset, target):
         if asset in self.portfolio.positions:
@@ -1815,7 +1868,9 @@ class TradingAlgorithm(object):
                            target,
                            limit_price=None,
                            stop_price=None,
-                           style=None):
+                           style=None,
+                           exit_take_profit_price=None,
+                           exit_stop_loss_price=None):
         """Place an order to adjust a position to a target value. If
         the position doesn't already exist, this is equivalent to placing a new
         order. If the position does exist, this is equivalent to placing an
@@ -1836,6 +1891,10 @@ class TradingAlgorithm(object):
             The stop price for the order.
         style : ExecutionStyle
             The execution style for the order.
+        exit_take_profit_price: float, optional
+            Set the T/P price after filling the order.
+        exit_stop_loss_price: float, optional
+            Set the S/L price after filling the order.
 
         Returns
         -------
@@ -1874,12 +1933,16 @@ class TradingAlgorithm(object):
         return self.order(asset, amount,
                           limit_price=limit_price,
                           stop_price=stop_price,
-                          style=style)
+                          style=style,
+                          exit_take_profit_price=exit_take_profit_price,
+                          exit_stop_loss_price=exit_stop_loss_price)
 
     @api_method
     @disallowed_in_before_trading_start(OrderInBeforeTradingStart())
     def order_target_percent(self, asset, target,
-                             limit_price=None, stop_price=None, style=None):
+                             limit_price=None, stop_price=None, style=None,
+                             exit_take_profit_price=None,
+                             exit_stop_loss_price=None):
         """Place an order to adjust a position to a target percent of the
         current portfolio value. If the position doesn't already exist, this is
         equivalent to placing a new order. If the position does exist, this is
@@ -1900,6 +1963,10 @@ class TradingAlgorithm(object):
             The stop price for the order.
         style : ExecutionStyle
             The execution style for the order.
+        exit_take_profit_price: float, optional
+            Set the T/P price after filling the order.
+        exit_stop_loss_price: float, optional
+            Set the S/L price after filling the order.
 
         Returns
         -------
@@ -1937,7 +2004,9 @@ class TradingAlgorithm(object):
         return self.order(asset, amount,
                           limit_price=limit_price,
                           stop_price=stop_price,
-                          style=style)
+                          style=style,
+                          exit_take_profit_price=exit_take_profit_price,
+                          exit_stop_loss_price=exit_stop_loss_price)
 
     def _calculate_order_target_percent_amount(self, asset, target):
         target_amount = self._calculate_order_percent_amount(asset, target)

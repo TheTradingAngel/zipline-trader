@@ -23,13 +23,15 @@ from zipline.utils.input_validation import expect_types
 
 class Transaction(object):
     @expect_types(asset=Asset)
-    def __init__(self, asset, amount, dt, price, order_id):
+    def __init__(self, asset, amount, dt, price, order_id, take_profit_price=None, stop_loss_price=None):
         self.asset = asset
         self.amount = amount
         self.dt = dt
         self.price = price
         self.order_id = order_id
         self.type = DATASOURCE_TYPE.TRANSACTION
+        self.take_profit_price = take_profit_price
+        self.stop_loss_price = stop_loss_price
 
     def __getitem__(self, name):
         return self.__dict__[name]
@@ -37,7 +39,7 @@ class Transaction(object):
     def __repr__(self):
         template = (
             "{cls}(asset={asset}, dt={dt},"
-            " amount={amount}, price={price})"
+            " amount={amount}, price={price}, take_profit_price={tpp}, stop_loss_price={slp})"
         )
 
         return template.format(
@@ -45,7 +47,9 @@ class Transaction(object):
             asset=self.asset,
             dt=self.dt,
             amount=self.amount,
-            price=self.price
+            price=self.price,
+            tpp=self.take_profit_price,
+            slp=self.stop_loss_price,
         )
 
     def to_dict(self):
@@ -70,5 +74,7 @@ def create_transaction(order, dt, price, amount):
         amount=float(amount),
         dt=dt,
         price=price,
-        order_id=order.id
+        order_id=order.id,
+        take_profit_price=order.exit_take_profit_price,
+        stop_loss_price=order.exit_stop_loss_price,
     )

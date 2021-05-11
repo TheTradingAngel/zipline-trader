@@ -156,6 +156,8 @@ class Order(Event):
             'stop_reached',
             'limit_reached',
             'created',
+            'exit_take_profit_price',
+            'exit_stop_loss_price',
         },
     )
 
@@ -322,6 +324,10 @@ class Position(object):
         Most recent price for the position.
     last_sale_date : pd.Timestamp
         Datetime at which ``last_sale_price`` was last updated.
+    take_profit_price : float
+        Price at which to exit the position (price is better than entry). 0 means no exit set.
+    stop_loss_price : float
+        Price at which to exit the position (price is worse than entry). 0 means no exit set.
     """
     __slots__ = ('_underlying_position',)
 
@@ -348,6 +354,8 @@ class Position(object):
                 'cost_basis',
                 'last_sale_price',
                 'last_sale_date',
+                'take_profit_price',
+                'stop_loss_price',
             )
         }
 
@@ -361,6 +369,8 @@ class Position(object):
             'cost_basis',
             'last_sale_price',
             'last_sale_date',
+            'take_profit_price',
+            'stop_loss_price',
         },
     )
 
@@ -375,6 +385,8 @@ class _DeprecatedSidLookupPosition(object):
         self.cost_basis = 0.0  # per share
         self.last_sale_price = 0.0
         self.last_sale_date = None
+        self.take_profit_price = 0.
+        self.stop_loss_price = 0.
 
     def __repr__(self):
         return "_DeprecatedSidLookupPosition({0})".format(self.__dict__)
@@ -389,6 +401,8 @@ class _DeprecatedSidLookupPosition(object):
             'cost_basis',
             'last_sale_price',
             'last_sale_date',
+            'take_profit_price',
+            'stop_loss_price',
         },
     )
 

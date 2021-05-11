@@ -38,6 +38,8 @@ import logbook
 
 from zipline.assets import Future
 import zipline.protocol as zp
+from zipline.finance.execution import asymmetric_round_price
+from zipline.finance.order import Order
 
 log = logbook.Logger('Performance')
 
@@ -50,13 +52,17 @@ class Position(object):
                  amount=0.,
                  cost_basis=0.0,
                  last_sale_price=0.0,
-                 last_sale_date=None):
+                 last_sale_date=None,
+                 take_profit_price=0.,
+                 stop_loss_price=0.):
         inner = zp.InnerPosition(
             asset=asset,
             amount=amount,
             cost_basis=cost_basis,
             last_sale_price=last_sale_price,
             last_sale_date=last_sale_date,
+            take_profit_price=take_profit_price,
+            stop_loss_price=stop_loss_price,
         )
         object.__setattr__(self, 'inner_position', inner)
         object.__setattr__(self, 'protocol_position', zp.Position(inner))
@@ -124,6 +130,12 @@ class Position(object):
         log.info("after split: " + str(self))
         log.info("returning cash: " + str(return_cash))
 
+        # Process exit levels in a similar way to Order.handle_split
+        if self.take_profit_price != 0.:
+            self.take_profit_price = round(self.take_profit_price * ratio, 2)
+        if self.stop_loss_price != 0.:
+            self.stop_loss_price = round(self.stop_loss_price * ratio, 2)
+
         # return the leftover cash, which will be converted into cash
         # (rounded to the nearest cent)
         return return_cash
@@ -135,8 +147,10 @@ class Position(object):
 
         total_shares = self.amount + txn.amount
 
-        if total_shares == 0:
+        if abs(total_shares) < 1e-3:
             self.cost_basis = 0.0
+            self.take_profit_price = 0.
+            self.stop_loss_price = 0.
         else:
             prev_direction = copysign(1, self.amount)
             txn_direction = copysign(1, txn.amount)
@@ -159,7 +173,55 @@ class Position(object):
                 self.last_sale_price = txn.price
                 self.last_sale_date = txn.dt
 
+            # Update take profit and stop loss prices if given
+            self.update_exit_prices(
+                take_profit_price=txn.take_profit_price, stop_loss_price=txn.stop_loss_price, amount=total_shares,
+                last_sale_price=self.last_sale_price)
+
         self.amount = total_shares
+
+    def update_exit_prices(self, take_profit_price=None, stop_loss_price=None, amount=None, last_sale_price=None):
+        if amount is None:
+            amount = self.amount
+
+        resulting_direction = copysign(1, amount)
+        if take_profit_price is not None:
+            if self.take_profit_price != 0 and last_sale_price is not None and \
+                    resulting_direction*take_profit_price < resulting_direction*last_sale_price:
+                raise ValueError('Take profit price should be better than last price: '
+                                 'T/P %r < %r' % (take_profit_price, last_sale_price))
+
+            self.take_profit_price = asymmetric_round_price(take_profit_price, not amount > 0, self.asset.tick_size)
+
+        if stop_loss_price is not None:
+            if self.stop_loss_price != 0 and last_sale_price is not None and \
+                    resulting_direction*stop_loss_price > resulting_direction*last_sale_price:
+                raise ValueError('Stop loss price should be worse than last price: '
+                                 'S/L %r > %r' % (stop_loss_price, last_sale_price))
+
+            self.stop_loss_price = asymmetric_round_price(stop_loss_price, amount > 0, self.asset.tick_size)
+
+    def get_exit_orders(self):
+        # Stop loss and take profit orders have to be separated, because a stop-limit order behaves differently than two
+        # separate stop and limit orders
+        exit_orders = []
+        if self.stop_loss_price != 0:
+            exit_orders += [Order(
+                self.last_sale_date,
+                self.asset,
+                -self.amount,
+                stop=self.stop_loss_price or None,
+            )]
+
+        if self.take_profit_price != 0:
+            exit_orders += [Order(
+                self.last_sale_date,
+                self.asset,
+                -self.amount,
+                limit=self.take_profit_price or None,
+            )]
+
+        return exit_orders
 
     def adjust_commission_cost_basis(self, asset, cost):
         """
@@ -204,12 +266,14 @@ class Position(object):
 
     def __repr__(self):
         template = "asset: {asset}, amount: {amount}, cost_basis: {cost_basis}, \
-last_sale_price: {last_sale_price}"
+last_sale_price: {last_sale_price}, take_profit_price: {take_profit_price}, stop_loss_price: {stop_loss_price}"
         return template.format(
             asset=self.asset,
             amount=self.amount,
             cost_basis=self.cost_basis,
-            last_sale_price=self.last_sale_price
+            last_sale_price=self.last_sale_price,
+            take_profit_price=self.take_profit_price,
+            stop_loss_price=self.stop_loss_price,
         )
 
     def to_dict(self):
@@ -221,5 +285,7 @@ last_sale_price: {last_sale_price}"
             'sid': self.asset,
             'amount': self.amount,
             'cost_basis': self.cost_basis,
-            'last_sale_price': self.last_sale_price
+            'last_sale_price': self.last_sale_price,
+            'take_profit_price': self.take_profit_price,
+            'stop_loss_price': self.stop_loss_price,
         }

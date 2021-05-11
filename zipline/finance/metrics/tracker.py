@@ -161,14 +161,22 @@ class MetricsTracker(object):
                         amount=None,
                         last_sale_price=None,
                         last_sale_date=None,
-                        cost_basis=None):
+                        cost_basis=None,
+                        take_profit_price=None,
+                        stop_loss_price=None,):
         self._ledger.position_tracker.update_position(
             asset,
             amount,
             last_sale_price,
             last_sale_date,
             cost_basis,
+            take_profit_price=take_profit_price,
+            stop_loss_price=stop_loss_price,
         )
+
+    def update_exit_prices(self, asset, take_profit_price=None, stop_loss_price=None):
+        self._ledger.position_tracker.update_exit_prices(
+            asset, take_profit_price=take_profit_price, stop_loss_price=stop_loss_price)
 
     def override_account_fields(self, **kwargs):
         self._ledger.override_account_fields(**kwargs)

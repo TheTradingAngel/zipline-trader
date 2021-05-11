@@ -35,6 +35,9 @@ from zipline.finance.commission import (
 )
 from zipline.utils.input_validation import expect_types
 
+from zipline.finance.position import Position
+from zipline.finance.metrics import MetricsTracker
+
 log = Logger('Blotter')
 warning_logger = Logger('AlgoWarning')
 
@@ -144,7 +147,9 @@ class SimulationBlotter(Blotter):
             amount=amount,
             stop=style.get_stop_price(is_buy),
             limit=style.get_limit_price(is_buy),
-            id=order_id
+            id=order_id,
+            exit_take_profit_price=style.exit_take_profit_price,
+            exit_stop_loss_price=style.exit_stop_loss_price,
         )
 
         self.open_orders[order.asset].append(order)
@@ -337,31 +342,75 @@ class SimulationBlotter(Blotter):
         transactions = []
         commissions = []
 
+        open_orders = {}
+
+        # Add normal open orders
         if self.open_orders:
             for asset, asset_orders in iteritems(self.open_orders):
-                slippage = self.slippage_models[type(asset)]
+                if asset not in open_orders:
+                    open_orders[asset] = []
+                open_orders[asset] += list(asset_orders)
 
-                for order, txn in \
-                        slippage.simulate(bar_data, asset, asset_orders):
-                    commission = self.commission_models[type(asset)]
-                    additional_commission = commission.calculate(order, txn)
+        # Add temporary open orders coming from position exit prices
+        pos_exit_orders = set()
+        dependent_exit_order_map = {}
+        if self.metrics_tracker is not None:
+            metrics_tracker: MetricsTracker = self.metrics_tracker
+            for position in metrics_tracker.positions.values():
+                exit_orders = position.get_exit_orders()
 
-                    if additional_commission > 0:
-                        commissions.append({
-                            "asset": order.asset,
-                            "order": order,
-                            "cost": additional_commission
-                        })
+                if len(exit_orders) > 0:
+                    pos_exit_orders |= set(exit_orders)
 
-                    order.filled += txn.amount
-                    order.commission += additional_commission
+                    if position.asset in open_orders:
+                        dependent_exit_order_map[open_orders[position.asset][0]] = set(exit_orders)
+                    if len(exit_orders) == 2:
+                        dependent_exit_order_map[exit_orders[0]] = {exit_orders[1]}
 
-                    order.dt = txn.dt
+                    if position.asset not in open_orders:
+                        open_orders[position.asset] = []
+                    open_orders[position.asset] += exit_orders
 
-                    transactions.append(txn)
+        # Simulate open orders
+        skip_orders = set()
+        for asset, asset_orders in open_orders.items():
+            slippage = self.slippage_models[type(asset)]
 
-                    if not order.open:
-                        closed_orders.append(order)
+            for order, txn in slippage.simulate(bar_data, asset, asset_orders):
+                if order in skip_orders:
+                    continue
+
+                commission = self.commission_models[type(asset)]
+                additional_commission = commission.calculate(order, txn)
+
+                if additional_commission > 0:
+                    commissions.append({
+                        "asset": order.asset,
+                        "order": order,
+                        "cost": additional_commission
+                    })
+
+                order.filled += txn.amount
+                order.commission += additional_commission
+
+                order.dt = txn.dt
+
+                transactions.append(txn)
+
+                if not order.open:
+                    closed_orders.append(order)
+
+                # If this order has a dependent order, make sure we skip the dependent order
+                # This is done to make sure that if a position defines both a stop and a limit, and both would be
+                # triggered by the current candle, only the stop order is triggered
+                if order in dependent_exit_order_map:
+                    skip_orders |= dependent_exit_order_map[order]
+
+        # Register any position exit order for processing
+        for order in closed_orders:
+            if order in pos_exit_orders:
+                self.open_orders[order.asset].append(order)
+                self.orders[order.id] = order
 
         return transactions, commissions, closed_orders
 

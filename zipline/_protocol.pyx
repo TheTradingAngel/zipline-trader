@@ -975,22 +975,28 @@ cdef class InnerPosition:
                  amount=0.,
                  cost_basis=0.0,
                  last_sale_price=0.0,
-                 last_sale_date=None):
+                 last_sale_date=None,
+                 take_profit_price=0.,
+                 stop_loss_price=0.):
         self.asset = asset
         self.amount = amount
         self.cost_basis = cost_basis  # per share
         self.last_sale_price = last_sale_price
         self.last_sale_date = last_sale_date
+        self.take_profit_price = take_profit_price
+        self.stop_loss_price = stop_loss_price
 
     def __repr__(self):
         return (
             '%s(asset=%r, amount=%r, cost_basis=%r,'
-            ' last_sale_price=%r, last_sale_date=%r)' % (
+            ' last_sale_price=%r, last_sale_date=%r, take_profit_price=%r, stop_loss_price=%r)' % (
                 type(self).__name__,
                 self.asset,
                 self.amount,
                 self.cost_basis,
                 self.last_sale_price,
                 self.last_sale_date,
+                self.take_profit_price,
+                self.stop_loss_price,
             )
         )

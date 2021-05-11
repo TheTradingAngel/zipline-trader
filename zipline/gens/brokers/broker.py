@@ -50,6 +50,10 @@ class Broker(object):
     def order(self, asset, amount, style):
         pass
 
+    @abstractmethod
+    def update_exit_prices(self, asset, take_profit_price=None, stop_loss_price=None):
+        pass
+
     def is_alive(self):
         pass
 

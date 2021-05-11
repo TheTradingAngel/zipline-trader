@@ -27,6 +27,17 @@ class ExecutionStyle(with_metaclass(abc.ABCMeta)):
     """
 
     _exchange = None
+    exit_take_profit_price = None
+    exit_stop_loss_price = None
+
+    def set_exit_prices(self, exit_take_profit_price=None, exit_stop_loss_price=None):
+        if exit_take_profit_price is not None:
+            check_stoplimit_prices(exit_take_profit_price, 'limit')
+            self.exit_take_profit_price = exit_take_profit_price
+
+        if exit_stop_loss_price is not None:
+            check_stoplimit_prices(exit_stop_loss_price, 'stop')
+            self.exit_stop_loss_price = exit_stop_loss_price
 
     @abc.abstractmethod
     def get_limit_price(self, is_buy):
@@ -59,8 +70,10 @@ class MarketOrder(ExecutionStyle):
     This is the default for orders placed with :func:`~zipline.api.order`.
     """
 
-    def __init__(self, exchange=None):
+    def __init__(self, exchange=None, exit_take_profit_price=None, exit_stop_loss_price=None):
         self._exchange = exchange
+
+        self.set_exit_prices(exit_take_profit_price, exit_stop_loss_price)
 
     def get_limit_price(self, _is_buy):
         return None
@@ -80,12 +93,14 @@ class LimitOrder(ExecutionStyle):
         Maximum price for buys, or minimum price for sells, at which the order
         should be filled.
     """
-    def __init__(self, limit_price, asset=None, exchange=None):
+    def __init__(self, limit_price, asset=None, exchange=None, exit_take_profit_price=None, exit_stop_loss_price=None):
         check_stoplimit_prices(limit_price, 'limit')
 
         self.limit_price = limit_price
         self._exchange = exchange
         self.asset = asset
+
+        self.set_exit_prices(exit_take_profit_price, exit_stop_loss_price)
 
     def get_limit_price(self, is_buy):
         return asymmetric_round_price(
@@ -110,12 +125,14 @@ class StopOrder(ExecutionStyle):
         order will be placed if market price falls below this value. For buys,
         the order will be placed if market price rises above this value.
     """
-    def __init__(self, stop_price, asset=None, exchange=None):
+    def __init__(self, stop_price, asset=None, exchange=None, exit_take_profit_price=None, exit_stop_loss_price=None):
         check_stoplimit_prices(stop_price, 'stop')
 
         self.stop_price = stop_price
         self._exchange = exchange
         self.asset = asset
+
+        self.set_exit_prices(exit_take_profit_price, exit_stop_loss_price)
 
     def get_limit_price(self, _is_buy):
         return None
@@ -143,7 +160,8 @@ class StopLimitOrder(ExecutionStyle):
         order will be placed if market price falls below this value. For buys,
         the order will be placed if market price rises above this value.
     """
-    def __init__(self, limit_price, stop_price, asset=None, exchange=None):
+    def __init__(self, limit_price, stop_price, asset=None, exchange=None, exit_take_profit_price=None,
+                 exit_stop_loss_price=None):
         check_stoplimit_prices(limit_price, 'limit')
         check_stoplimit_prices(stop_price, 'stop')
 
@@ -151,6 +169,8 @@ class StopLimitOrder(ExecutionStyle):
         self.stop_price = stop_price
         self._exchange = exchange
         self.asset = asset
+
+        self.set_exit_prices(exit_take_profit_price, exit_stop_loss_price)
 
     def get_limit_price(self, is_buy):
         return asymmetric_round_price(
