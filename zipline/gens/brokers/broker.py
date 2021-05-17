@@ -18,6 +18,10 @@ class Broker(object):
     __metaclass__ = ABCMeta
 
     @abstractmethod
+    def set_metrics_tracker(self, metrics_tracker):
+        pass
+
+    @abstractmethod
     def subscribe_to_market_data(self, asset):
         pass
 
