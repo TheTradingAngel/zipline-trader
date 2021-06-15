@@ -213,6 +213,12 @@ class LiveTradingAlgorithm(TradingAlgorithm):
         return self.broker.account
 
     @api_method
+    def attach_pipeline(self, pipeline, name, chunks=None, eager=True):
+        if chunks is None:
+            chunks = 1
+        return super(LiveTradingAlgorithm, self).attach_pipeline(pipeline, name, chunks=chunks, eager=eager)
+
+    @api_method
     @allowed_only_in_before_trading_start(
         ScheduleFunctionOutsideTradingStart())
     def schedule_function(self,
