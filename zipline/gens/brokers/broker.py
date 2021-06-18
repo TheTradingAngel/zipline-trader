@@ -84,5 +84,5 @@ class Broker(object):
         pass
 
     @abstractmethod
-    def get_realtime_bars(self, assets, frequency):
+    def get_realtime_bars(self, assets, frequency, bar_count=None):
         pass

@@ -1009,7 +1009,7 @@ class IBBroker(Broker):
 
         return self._tws.bars[asset.symbol].index[-1]
 
-    def get_realtime_bars(self, assets, frequency):
+    def get_realtime_bars(self, assets, frequency, bar_count=None):
         if frequency == '1m':
             resample_freq = '1 Min'
         elif frequency == '1d':

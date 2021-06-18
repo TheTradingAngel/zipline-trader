@@ -282,7 +282,7 @@ class ALPACABroker(Broker):
         # these objects are consistent
         self.metrics_tracker._ledger._portfolio.positions = self.metrics_tracker.positions                                                 
 
-    def get_realtime_bars(self, assets, data_frequency):
+    def get_realtime_bars(self, assets, data_frequency, bar_count=None):
         # TODO: cache the result. The caller
         # (DataPortalLive#get_history_window) makes use of only one
         # column at a time.
@@ -293,7 +293,7 @@ class ALPACABroker(Broker):
         else:
             symbols = [asset.symbol for asset in assets]
         timeframe = '1D' if is_daily else '1Min'
-        df = self._api.get_barset(symbols, timeframe, limit=500).df
+        df = self._api.get_barset(symbols, timeframe, limit=bar_count or 500).df
         if not is_daily:
             df = df.between_time("09:30", "16:00")
         return df

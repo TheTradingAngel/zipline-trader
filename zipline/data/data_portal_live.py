@@ -63,7 +63,7 @@ class DataPortalLive(DataPortal):
                 data_frequency,
                 ffill=True)
             return historical_bars
-        realtime_bars = self.broker.get_realtime_bars(assets, frequency)
+        realtime_bars = self.broker.get_realtime_bars(assets, frequency, bar_count=bar_count)
 
         # Broker.get_realtime_history() returns the asset as level 0 column,
         # open, high, low, close, volume returned as level 1 columns.
