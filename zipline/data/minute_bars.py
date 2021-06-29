@@ -70,17 +70,22 @@ class MinuteBarReader(BarReader):
         return "minute"
 
 
-def _calc_minute_index(market_opens, minutes_per_day):
-    minutes = np.zeros(len(market_opens) * minutes_per_day,
+def _calc_minute_index(market_opens, minutes_per_day, minutes_freq):
+    bars_per_day = minutes_per_day//minutes_freq
+    minutes = np.zeros(len(market_opens) * bars_per_day,
                        dtype='datetime64[ns]')
-    deltas = np.arange(0, minutes_per_day, dtype='timedelta64[m]')
+    deltas = np.arange(0, minutes_per_day, minutes_freq, dtype='timedelta64[m]')
     for i, market_open in enumerate(market_opens):
         start = market_open.asm8
         minute_values = start + deltas
-        start_ix = minutes_per_day * i
-        end_ix = start_ix + minutes_per_day
+        start_ix = bars_per_day * i
+        end_ix = start_ix + bars_per_day
         minutes[start_ix:end_ix] = minute_values
-    return pd.to_datetime(minutes, utc=True)
+
+    idx = pd.to_datetime(minutes, utc=True)
+    if minutes_freq != 1:
+        idx -= pd.Timedelta(1, 'min')
+    return idx
 
 
 def _sid_subdir_path(sid):
@@ -222,9 +227,11 @@ class BcolzMinuteBarMetadata(object):
 
             if version >= 1:
                 minutes_per_day = raw_data['minutes_per_day']
+                minutes_freq = raw_data['minutes_freq']
             else:
                 # version 0 always assumed US equities.
                 minutes_per_day = US_EQUITIES_MINUTES_PER_DAY
+                minutes_freq = 1
 
             if version >= 2:
                 calendar = get_calendar(raw_data['calendar_name'])
@@ -258,6 +265,7 @@ class BcolzMinuteBarMetadata(object):
                 end_session,
                 minutes_per_day,
                 version=version,
+                minutes_freq=minutes_freq,
             )
 
     def __init__(
@@ -269,6 +277,7 @@ class BcolzMinuteBarMetadata(object):
         end_session,
         minutes_per_day,
         version=FORMAT_VERSION,
+        minutes_freq=1,
     ):
         self.calendar = calendar
         self.start_session = start_session
@@ -277,6 +286,7 @@ class BcolzMinuteBarMetadata(object):
         self.ohlc_ratios_per_sid = ohlc_ratios_per_sid
         self.minutes_per_day = minutes_per_day
         self.version = version
+        self.minutes_freq = minutes_freq
 
     def write(self, rootdir):
         """
@@ -345,6 +355,7 @@ class BcolzMinuteBarMetadata(object):
             'market_closes': (
                 market_closes.values.astype('datetime64[m]').
                 astype(np.int64).tolist()),
+            'minutes_freq': self.minutes_freq,
         }
         with open(self.metadata_path(rootdir), 'w+') as fp:
             json.dump(metadata, fp)
@@ -450,7 +461,8 @@ class BcolzMinuteBarWriter(object):
                  default_ohlc_ratio=OHLC_RATIO,
                  ohlc_ratios_per_sid=None,
                  expectedlen=DEFAULT_EXPECTEDLEN,
-                 write_metadata=True):
+                 write_metadata=True,
+                 minutes_freq=1):
 
         self._rootdir = rootdir
         self._start_session = start_session
@@ -461,12 +473,13 @@ class BcolzMinuteBarWriter(object):
         self._schedule = calendar.schedule[slicer]
         self._session_labels = self._schedule.index
         self._minutes_per_day = minutes_per_day
+        self._minutes_freq = minutes_freq
         self._expectedlen = expectedlen
         self._default_ohlc_ratio = default_ohlc_ratio
         self._ohlc_ratios_per_sid = ohlc_ratios_per_sid
 
         self._minute_index = _calc_minute_index(
-            self._schedule.market_open, self._minutes_per_day)
+            self._schedule.market_open, self._minutes_per_day, self._minutes_freq)
 
         if write_metadata:
             metadata = BcolzMinuteBarMetadata(
@@ -476,6 +489,7 @@ class BcolzMinuteBarWriter(object):
                 self._start_session,
                 self._end_session,
                 self._minutes_per_day,
+                minutes_freq=self._minutes_freq,
             )
             metadata.write(self._rootdir)
 
@@ -498,7 +512,8 @@ class BcolzMinuteBarWriter(object):
             metadata.minutes_per_day,
             metadata.default_ohlc_ratio,
             metadata.ohlc_ratios_per_sid,
-            write_metadata=end_session is not None
+            write_metadata=end_session is not None,
+            minutes_freq=metadata.minutes_freq,
         )
 
     @property
@@ -947,6 +962,7 @@ class BcolzMinuteBarReader(MinuteBarReader):
             self._ohlc_inverses_per_sid = None
 
         self._minutes_per_day = metadata.minutes_per_day
+        self._minutes_freq = metadata.minutes_freq
 
         self._carrays = {
             field: LRU(sid_cache_sizes[field])

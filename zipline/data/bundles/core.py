@@ -169,7 +169,8 @@ RegisteredBundle = namedtuple(
      'end_session',
      'minutes_per_day',
      'ingest',
-     'create_writers']
+     'create_writers',
+     'minutes_freq']
 )
 
 BundleData = namedtuple(
@@ -260,7 +261,8 @@ def _make_bundle_core():
                  start_session=None,
                  end_session=None,
                  minutes_per_day=390,
-                 create_writers=True):
+                 create_writers=True,
+                 minutes_freq=1):
         """Register a data bundle ingest function.
 
         Parameters
@@ -310,6 +312,8 @@ def _make_bundle_core():
             Should the ingest machinery create the writers for the ingest
             function. This can be disabled as an optimization for cases where
             they are not needed, like the ``quantopian-quandl`` bundle.
+        minutes_freq : int, optional
+            The frequency of minutes stored for intraday data.
 
         Notes
         -----
@@ -342,6 +346,7 @@ def _make_bundle_core():
             minutes_per_day=minutes_per_day,
             ingest=f,
             create_writers=create_writers,
+            minutes_freq=minutes_freq,
         )
         return f
 
@@ -472,6 +477,7 @@ def _make_bundle_core():
                         start_session,
                         end_session,
                         minutes_per_day=bundle.minutes_per_day,
+                        minutes_freq=bundle.minutes_freq,
                     )
 
                 # Do an empty write to ensure that the daily ctables exist
