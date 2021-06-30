@@ -65,16 +65,31 @@ class BcolzMinuteWriterColumnMismatch(Exception):
 
 
 class MinuteBarReader(BarReader):
+
     @property
     def data_frequency(self):
         return "minute"
 
+    @property
+    def minutes_freq(self):
+        raise NotImplementedError
+
 
 def _calc_minute_index(market_opens, minutes_per_day, minutes_freq):
+    """
+    Calculates all the minute labels given the amount of minutes in a day and the frequency. Note that minute labels
+    represent the close times of the bars, i.e. the time at which the data is received.
+
+    For example (calendar starts at 9:01):
+    - minutes_freq=1 --> 9:01, 9:02, 9:03, 9:04, ...
+    - minutes_freq=5 --> 9:05, 9:10, 9:15, 9:20, ...
+    - minutes_freq=30 --> 9:30, 10:00, 10:30, 11:00, ...
+    - minutes_freq=60 --> 10:00, 11:00, 12:00, 13:00, ...
+    """
     bars_per_day = minutes_per_day//minutes_freq
     minutes = np.zeros(len(market_opens) * bars_per_day,
                        dtype='datetime64[ns]')
-    deltas = np.arange(0, minutes_per_day, minutes_freq, dtype='timedelta64[m]')
+    deltas = np.arange(0, minutes_per_day, minutes_freq, dtype='timedelta64[m]')[:bars_per_day]
     for i, market_open in enumerate(market_opens):
         start = market_open.asm8
         minute_values = start + deltas
@@ -84,7 +99,7 @@ def _calc_minute_index(market_opens, minutes_per_day, minutes_freq):
 
     idx = pd.to_datetime(minutes, utc=True)
     if minutes_freq != 1:
-        idx -= pd.Timedelta(1, 'min')
+        idx += pd.Timedelta(minutes_freq-1, 'min')
     return idx
 
 
@@ -980,6 +995,10 @@ class BcolzMinuteBarReader(MinuteBarReader):
         # which is the minute epoch of that date.
         self._known_zero_volume_dict = {}
 
+    @property
+    def minutes_freq(self):
+        return self._minutes_freq
+
     def _get_metadata(self):
         return BcolzMinuteBarMetadata.read(self._rootdir)
 
@@ -1213,7 +1232,7 @@ class BcolzMinuteBarReader(MinuteBarReader):
     def _pos_to_minute(self, pos):
         minute_epoch = minute_value(
             self._market_open_values,
-            pos,
+            pos*self._minutes_freq-1+self._minutes_freq,
             self._minutes_per_day
         )
 
@@ -1238,13 +1257,18 @@ class BcolzMinuteBarReader(MinuteBarReader):
         int: The position of the given minute in the list of all trading
         minutes since market open on the first trading day.
         """
-        return find_position_of_minute(
+        min_pos = find_position_of_minute(
             self._market_open_values,
             self._market_close_values,
             minute_dt.value / NANOS_IN_MINUTE,
             self._minutes_per_day,
             False,
         )
+
+        if self._minutes_freq != 1:
+            min_pos = (min_pos+1-self._minutes_freq)//self._minutes_freq
+
+        return min_pos
 
     def load_raw_arrays(self, fields, start_dt, end_dt, sids):
         """
