@@ -134,7 +134,7 @@ def _run(handle_data,
         end_date=end,
     )
 
-    emission_rate = 'daily'
+    emission_rate = data_frequency
     if broker:
         emission_rate = 'minute'
         # if we run zipline as a command line tool, these will probably not be initiated

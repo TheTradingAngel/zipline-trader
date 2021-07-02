@@ -681,7 +681,7 @@ class TradingAlgorithm(object):
                     self._performance_callback(perf)
 
             # convert perf dict to pandas dataframe
-            daily_stats = self._create_daily_stats(perfs)
+            daily_stats = self._create_daily_stats(perfs, minute_perf=self.sim_params.emission_rate == 'minute')
 
             self.analyze(daily_stats)
         finally:
@@ -690,20 +690,21 @@ class TradingAlgorithm(object):
 
         return daily_stats
 
-    def _create_daily_stats(self, perfs):
+    def _create_daily_stats(self, perfs, minute_perf=False):
         # create daily and cumulative stats dataframe
         daily_perfs = []
-        # TODO: the loop here could overwrite expected properties
+        # the loop here could overwrite expected properties
         # of daily_perf. Could potentially raise or log a
         # warning.
+        perf_key = 'minute_perf' if minute_perf else 'daily_perf'
         for perf in perfs:
-            if perf and 'daily_perf' in perf:
+            if perf and perf_key in perf:
 
-                perf['daily_perf'].update(
-                    perf['daily_perf'].pop('recorded_vars')
+                perf[perf_key].update(
+                    perf[perf_key].pop('recorded_vars')
                 )
-                perf['daily_perf'].update(perf['cumulative_risk_metrics'])
-                daily_perfs.append(perf['daily_perf'])
+                perf[perf_key].update(perf['cumulative_risk_metrics'])
+                daily_perfs.append(perf[perf_key])
             else:
                 self.risk_report = perf
 
