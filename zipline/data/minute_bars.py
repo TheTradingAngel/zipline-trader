@@ -1184,6 +1184,11 @@ class BcolzMinuteBarReader(MinuteBarReader):
 
         if field != 'volume':
             value *= self._ohlc_ratio_inverse_for_sid(sid)
+
+        # Set volume to zero if we are not at the exact time of the bar, to prevent any orders being filled
+        if field == 'volume' and self._minutes_freq != 1 and self._pos_to_minute(minute_pos).value != dt.value:
+            return 0
+
         return value
 
     def get_last_traded_dt(self, asset, dt):
