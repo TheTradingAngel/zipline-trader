@@ -582,7 +582,7 @@ class BcolzMinuteBarWriter(object):
         data = json.loads(sizes)
         # use integer division so that the result is an int
         # for pandas index later https://github.com/pandas-dev/pandas/blob/master/pandas/tseries/base.py#L247 # noqa
-        num_days = data['shape'][0] // self._minutes_per_day
+        num_days = data['shape'][0]*self._minutes_freq // self._minutes_per_day
         if num_days == 0:
             # empty container
             return pd.NaT
@@ -638,8 +638,9 @@ class BcolzMinuteBarWriter(object):
         # Compute the number of minutes to be filled, accounting for the
         # possibility of a partial day's worth of minutes existing for
         # the previous day.
-        minute_offset = len(table) % self._minutes_per_day
-        num_to_prepend = numdays * self._minutes_per_day - minute_offset
+        n_bars = self._minutes_per_day//self._minutes_freq
+        minute_offset = len(table) % n_bars
+        num_to_prepend = numdays * n_bars - minute_offset
 
         prepend_array = np.zeros(num_to_prepend, np.uint32)
         # Fill all OHLCV with zeros.
