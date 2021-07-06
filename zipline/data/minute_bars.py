@@ -103,6 +103,9 @@ def _calc_minute_index(market_opens, minutes_per_day, minutes_freq):
     return idx
 
 
+calc_minute_index = _calc_minute_index
+
+
 def _sid_subdir_path(sid):
     """
     Format subdir path to limit the number directories in any given
