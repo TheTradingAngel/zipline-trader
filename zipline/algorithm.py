@@ -1323,6 +1323,13 @@ class TradingAlgorithm(object):
         amount, style = self._calculate_order(asset, amount,
                                               limit_price, stop_price, style)
         style.set_exit_prices(exit_take_profit_price=exit_take_profit_price, exit_stop_loss_price=exit_stop_loss_price)
+
+        if amount == 0:
+            if style.exit_stop_loss_price is not None or style.exit_take_profit_price is not None:
+                return self.update_exit_prices(
+                    asset, take_profit_price=style.exit_take_profit_price, stop_loss_price=style.exit_stop_loss_price)
+            return
+
         return self.blotter.order(asset, amount, style)
 
     def _calculate_order(self, asset, amount,
