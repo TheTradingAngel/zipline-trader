@@ -576,6 +576,15 @@ class DailyHistoryLoader(HistoryLoader):
 
 class MinuteHistoryLoader(HistoryLoader):
 
+    def __init__(self, *args, **kwargs):
+        super(MinuteHistoryLoader, self).__init__(*args, **kwargs)
+
+        self._minutes_freq = getattr(self._reader, 'minutes_freq', 1)
+
+    @property
+    def minutes_freq(self):
+        return self._minutes_freq
+
     @property
     def _frequency(self):
         return 'minute'
@@ -585,7 +594,16 @@ class MinuteHistoryLoader(HistoryLoader):
         mm = self.trading_calendar.all_minutes
         start = mm.searchsorted(self._reader.first_trading_day)
         end = mm.searchsorted(self._reader.last_available_dt, side='right')
-        return mm[start:end]
+        idx_minutes = mm[start:end]
+
+        # Modify the calendar labels to an intraday frequency other than 1-minute
+        if self._minutes_freq != 1:
+            floor_freq = str(self._minutes_freq)+'min'
+            last_close_time = idx_minutes[-1].floor(floor_freq)
+            idx_minutes = idx_minutes[idx_minutes <= last_close_time]
+            idx_minutes = idx_minutes.floor(floor_freq)[::-self._minutes_freq][::-1]
+
+        return idx_minutes
 
     def _array(self, dts, assets, field):
         return self._reader.load_raw_arrays(

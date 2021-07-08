@@ -12,6 +12,7 @@
 # limitations under the License.
 
 from abc import ABCMeta, abstractmethod, abstractproperty
+import pandas as pd
 
 
 class Broker(object):
@@ -23,6 +24,9 @@ class Broker(object):
 
     @abstractmethod
     def subscribe_to_market_data(self, asset):
+        pass
+
+    def set_minutes_index(self, tds: pd.DatetimeIndex):
         pass
 
     @property

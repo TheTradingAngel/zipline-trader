@@ -14,6 +14,7 @@ from datetime import timedelta
 
 import pandas as pd
 from zipline.data.data_portal import DataPortal
+from zipline.data.minute_bars import calc_minute_index, US_EQUITIES_MINUTES_PER_DAY
 
 from logbook import Logger
 
@@ -24,6 +25,12 @@ class DataPortalLive(DataPortal):
     def __init__(self, broker, *args, **kwargs):
         self.broker = broker
         super(DataPortalLive, self).__init__(*args, **kwargs)
+
+        market_opens = self.trading_calendar.schedule.market_open
+        minutes_per_day = US_EQUITIES_MINUTES_PER_DAY
+        minutes_freq = self._minute_history_loader.minutes_freq
+        self._minutes_index = calc_minute_index(market_opens, minutes_per_day, minutes_freq)
+        self.broker.set_minutes_index(self._minutes_index)
 
     def get_last_traded_dt(self, asset, dt, data_frequency):
         return self.broker.get_last_traded_dt(asset)

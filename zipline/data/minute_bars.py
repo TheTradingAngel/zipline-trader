@@ -65,22 +65,45 @@ class BcolzMinuteWriterColumnMismatch(Exception):
 
 
 class MinuteBarReader(BarReader):
+
     @property
     def data_frequency(self):
         return "minute"
 
+    @property
+    def minutes_freq(self):
+        raise NotImplementedError
 
-def _calc_minute_index(market_opens, minutes_per_day):
-    minutes = np.zeros(len(market_opens) * minutes_per_day,
+
+def _calc_minute_index(market_opens, minutes_per_day, minutes_freq):
+    """
+    Calculates all the minute labels given the amount of minutes in a day and the frequency. Note that minute labels
+    represent the close times of the bars, i.e. the time at which the data is received.
+
+    For example (calendar starts at 9:01):
+    - minutes_freq=1 --> 9:01, 9:02, 9:03, 9:04, ...
+    - minutes_freq=5 --> 9:05, 9:10, 9:15, 9:20, ...
+    - minutes_freq=30 --> 9:30, 10:00, 10:30, 11:00, ...
+    - minutes_freq=60 --> 10:00, 11:00, 12:00, 13:00, ...
+    """
+    bars_per_day = minutes_per_day//minutes_freq
+    minutes = np.zeros(len(market_opens) * bars_per_day,
                        dtype='datetime64[ns]')
-    deltas = np.arange(0, minutes_per_day, dtype='timedelta64[m]')
+    deltas = np.arange(0, minutes_per_day, minutes_freq, dtype='timedelta64[m]')[:bars_per_day]
     for i, market_open in enumerate(market_opens):
         start = market_open.asm8
         minute_values = start + deltas
-        start_ix = minutes_per_day * i
-        end_ix = start_ix + minutes_per_day
+        start_ix = bars_per_day * i
+        end_ix = start_ix + bars_per_day
         minutes[start_ix:end_ix] = minute_values
-    return pd.to_datetime(minutes, utc=True)
+
+    idx = pd.to_datetime(minutes, utc=True)
+    if minutes_freq != 1:
+        idx += pd.Timedelta(minutes_freq-1, 'min')
+    return idx
+
+
+calc_minute_index = _calc_minute_index
 
 
 def _sid_subdir_path(sid):
@@ -222,9 +245,11 @@ class BcolzMinuteBarMetadata(object):
 
             if version >= 1:
                 minutes_per_day = raw_data['minutes_per_day']
+                minutes_freq = raw_data['minutes_freq']
             else:
                 # version 0 always assumed US equities.
                 minutes_per_day = US_EQUITIES_MINUTES_PER_DAY
+                minutes_freq = 1
 
             if version >= 2:
                 calendar = get_calendar(raw_data['calendar_name'])
@@ -258,6 +283,7 @@ class BcolzMinuteBarMetadata(object):
                 end_session,
                 minutes_per_day,
                 version=version,
+                minutes_freq=minutes_freq,
             )
 
     def __init__(
@@ -269,6 +295,7 @@ class BcolzMinuteBarMetadata(object):
         end_session,
         minutes_per_day,
         version=FORMAT_VERSION,
+        minutes_freq=1,
     ):
         self.calendar = calendar
         self.start_session = start_session
@@ -277,6 +304,7 @@ class BcolzMinuteBarMetadata(object):
         self.ohlc_ratios_per_sid = ohlc_ratios_per_sid
         self.minutes_per_day = minutes_per_day
         self.version = version
+        self.minutes_freq = minutes_freq
 
     def write(self, rootdir):
         """
@@ -345,6 +373,7 @@ class BcolzMinuteBarMetadata(object):
             'market_closes': (
                 market_closes.values.astype('datetime64[m]').
                 astype(np.int64).tolist()),
+            'minutes_freq': self.minutes_freq,
         }
         with open(self.metadata_path(rootdir), 'w+') as fp:
             json.dump(metadata, fp)
@@ -450,7 +479,8 @@ class BcolzMinuteBarWriter(object):
                  default_ohlc_ratio=OHLC_RATIO,
                  ohlc_ratios_per_sid=None,
                  expectedlen=DEFAULT_EXPECTEDLEN,
-                 write_metadata=True):
+                 write_metadata=True,
+                 minutes_freq=1):
 
         self._rootdir = rootdir
         self._start_session = start_session
@@ -461,12 +491,13 @@ class BcolzMinuteBarWriter(object):
         self._schedule = calendar.schedule[slicer]
         self._session_labels = self._schedule.index
         self._minutes_per_day = minutes_per_day
+        self._minutes_freq = minutes_freq
         self._expectedlen = expectedlen
         self._default_ohlc_ratio = default_ohlc_ratio
         self._ohlc_ratios_per_sid = ohlc_ratios_per_sid
 
         self._minute_index = _calc_minute_index(
-            self._schedule.market_open, self._minutes_per_day)
+            self._schedule.market_open, self._minutes_per_day, self._minutes_freq)
 
         if write_metadata:
             metadata = BcolzMinuteBarMetadata(
@@ -476,6 +507,7 @@ class BcolzMinuteBarWriter(object):
                 self._start_session,
                 self._end_session,
                 self._minutes_per_day,
+                minutes_freq=self._minutes_freq,
             )
             metadata.write(self._rootdir)
 
@@ -498,7 +530,8 @@ class BcolzMinuteBarWriter(object):
             metadata.minutes_per_day,
             metadata.default_ohlc_ratio,
             metadata.ohlc_ratios_per_sid,
-            write_metadata=end_session is not None
+            write_metadata=end_session is not None,
+            minutes_freq=metadata.minutes_freq,
         )
 
     @property
@@ -552,7 +585,7 @@ class BcolzMinuteBarWriter(object):
         data = json.loads(sizes)
         # use integer division so that the result is an int
         # for pandas index later https://github.com/pandas-dev/pandas/blob/master/pandas/tseries/base.py#L247 # noqa
-        num_days = data['shape'][0] // self._minutes_per_day
+        num_days = data['shape'][0]*self._minutes_freq // self._minutes_per_day
         if num_days == 0:
             # empty container
             return pd.NaT
@@ -608,8 +641,9 @@ class BcolzMinuteBarWriter(object):
         # Compute the number of minutes to be filled, accounting for the
         # possibility of a partial day's worth of minutes existing for
         # the previous day.
-        minute_offset = len(table) % self._minutes_per_day
-        num_to_prepend = numdays * self._minutes_per_day - minute_offset
+        n_bars = self._minutes_per_day//self._minutes_freq
+        minute_offset = len(table) % n_bars
+        num_to_prepend = numdays * n_bars - minute_offset
 
         prepend_array = np.zeros(num_to_prepend, np.uint32)
         # Fill all OHLCV with zeros.
@@ -947,6 +981,7 @@ class BcolzMinuteBarReader(MinuteBarReader):
             self._ohlc_inverses_per_sid = None
 
         self._minutes_per_day = metadata.minutes_per_day
+        self._minutes_freq = metadata.minutes_freq
 
         self._carrays = {
             field: LRU(sid_cache_sizes[field])
@@ -963,6 +998,10 @@ class BcolzMinuteBarReader(MinuteBarReader):
         # 10:31 AM US/Eastern, this dict would store {1: 23675971},
         # which is the minute epoch of that date.
         self._known_zero_volume_dict = {}
+
+    @property
+    def minutes_freq(self):
+        return self._minutes_freq
 
     def _get_metadata(self):
         return BcolzMinuteBarMetadata.read(self._rootdir)
@@ -1149,6 +1188,11 @@ class BcolzMinuteBarReader(MinuteBarReader):
 
         if field != 'volume':
             value *= self._ohlc_ratio_inverse_for_sid(sid)
+
+        # Set volume to zero if we are not at the exact time of the bar, to prevent any orders being filled
+        if field == 'volume' and self._minutes_freq != 1 and self._pos_to_minute(minute_pos).value != dt.value:
+            return 0
+
         return value
 
     def get_last_traded_dt(self, asset, dt):
@@ -1197,7 +1241,7 @@ class BcolzMinuteBarReader(MinuteBarReader):
     def _pos_to_minute(self, pos):
         minute_epoch = minute_value(
             self._market_open_values,
-            pos,
+            pos*self._minutes_freq-1+self._minutes_freq,
             self._minutes_per_day
         )
 
@@ -1222,13 +1266,18 @@ class BcolzMinuteBarReader(MinuteBarReader):
         int: The position of the given minute in the list of all trading
         minutes since market open on the first trading day.
         """
-        return find_position_of_minute(
+        min_pos = find_position_of_minute(
             self._market_open_values,
             self._market_close_values,
             minute_dt.value / NANOS_IN_MINUTE,
             self._minutes_per_day,
             False,
         )
+
+        if self._minutes_freq != 1:
+            min_pos = (min_pos+1-self._minutes_freq)//self._minutes_freq
+
+        return min_pos
 
     def load_raw_arrays(self, fields, start_dt, end_dt, sids):
         """

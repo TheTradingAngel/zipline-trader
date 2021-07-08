@@ -136,8 +136,26 @@ class AssetDispatchBarReader(with_metaclass(ABCMeta)):
 
 class AssetDispatchMinuteBarReader(AssetDispatchBarReader):
 
+    def __init__(self, *args, **kwargs):
+        super(AssetDispatchMinuteBarReader, self).__init__(*args, **kwargs)
+
+        self._minutes_freq = 1
+        for reader in self._readers.values():
+            self._minutes_freq = getattr(reader, 'minutes_freq', 1)
+            break
+
+    @property
+    def minutes_freq(self):
+        return self._minutes_freq
+
     def _dt_window_size(self, start_dt, end_dt):
-        return len(self.trading_calendar.minutes_in_range(start_dt, end_dt))
+        n_minutes = len(self.trading_calendar.minutes_in_range(start_dt, end_dt))
+
+        if self._minutes_freq != 1:
+            n_minutes //= self._minutes_freq
+            n_minutes += 1
+
+        return n_minutes
 
 
 class AssetDispatchSessionBarReader(AssetDispatchBarReader):

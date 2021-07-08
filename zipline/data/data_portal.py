@@ -890,12 +890,19 @@ class DataPortal(object):
         of minute frequency for the given sids.
         """
         # get all the minutes for this window
+        minutes_freq = self._minute_history_loader.minutes_freq
         try:
             minutes_for_window = self.trading_calendar.minutes_window(
-                end_dt, -bar_count
+                end_dt, -bar_count*minutes_freq,
             )
         except KeyError:
             self._handle_minute_history_out_of_bounds(bar_count)
+
+        # Only select ending times of our requested minutes frequency
+        floor_freq = str(minutes_freq)+'min'
+        last_close_time = minutes_for_window[-1].floor(floor_freq)
+        minutes_for_window = minutes_for_window[minutes_for_window <= last_close_time]
+        minutes_for_window = minutes_for_window.floor(floor_freq)[::-minutes_freq][::-1]
 
         if minutes_for_window[0] < self._first_trading_minute:
             self._handle_minute_history_out_of_bounds(bar_count)

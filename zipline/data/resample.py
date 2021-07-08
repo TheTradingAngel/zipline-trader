@@ -713,6 +713,15 @@ class ReindexMinuteBarReader(ReindexBarReader, MinuteBarReader):
     See: ``ReindexBarReader``
     """
 
+    def __init__(self, *args, **kwargs):
+        super(ReindexMinuteBarReader, self).__init__(*args, **kwargs)
+
+        self._minutes_freq = getattr(self._reader, 'minutes_freq', 1)
+
+    @property
+    def minutes_freq(self):
+        return self._minutes_freq
+
     def _outer_dts(self, start_dt, end_dt):
         return self._trading_calendar.minutes_in_range(start_dt, end_dt)
 

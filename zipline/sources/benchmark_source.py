@@ -64,6 +64,12 @@ class BenchmarkSource(object):
                     method="ffill"
                 )
 
+                # Make sure that only at the beginning of the day the return is given
+                ts = pd.Series(data=minute_series.index.normalize())
+                mask = ts == ts.shift(1)
+                mask.index = minute_series.index
+                minute_series[mask] = 0.
+
                 self._precalculated_series = minute_series
             else:
                 self._precalculated_series = daily_series
