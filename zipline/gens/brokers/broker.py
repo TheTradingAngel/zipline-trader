@@ -26,7 +26,7 @@ class Broker(object):
     def subscribe_to_market_data(self, asset):
         pass
 
-    def set_minutes_index(self, tds: pd.DatetimeIndex):
+    def set_minutes_index(self, calendar, tds: pd.DatetimeIndex):
         pass
 
     @property

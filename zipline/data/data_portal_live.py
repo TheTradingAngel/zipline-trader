@@ -30,7 +30,7 @@ class DataPortalLive(DataPortal):
         minutes_per_day = US_EQUITIES_MINUTES_PER_DAY
         minutes_freq = self._minute_history_loader.minutes_freq
         self._minutes_index = calc_minute_index(market_opens, minutes_per_day, minutes_freq)
-        self.broker.set_minutes_index(self._minutes_index)
+        self.broker.set_minutes_index(self.trading_calendar, self._minutes_index)
 
     def get_last_traded_dt(self, asset, dt, data_frequency):
         return self.broker.get_last_traded_dt(asset)
