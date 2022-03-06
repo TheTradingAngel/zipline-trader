@@ -170,6 +170,8 @@ class SlippageModel(with_metaclass(FinancialModelMeta)):
 
         # can use the close price, since we verified there's volume in this
         # bar.
+        high = data.current(asset, "high")
+        low = data.current(asset, "low")
         price = data.current(asset, "close")
 
         # BEGIN
@@ -185,7 +187,7 @@ class SlippageModel(with_metaclass(FinancialModelMeta)):
             if order.open_amount == 0:
                 continue
 
-            order.check_triggers(price, dt)
+            order.check_triggers(high, low, price, dt)
             if not order.triggered:
                 continue
 
@@ -664,6 +666,22 @@ class FixedBasisPointsSlippage(SlippageModel):
         max_volume = int(self.volume_limit * volume)
 
         price = data.current(order.asset, "close")
+        price_open = data.current(order.asset, 'open')
+
+        if order.limit_reached:
+            price = order.limit
+            # If the buy limit price is above the open price, the order was triggered at the open price
+            # If the sell limit price is below the open price, the order was triggered at the open price
+            if (order.amount > 0 and price > price_open) or (order.amount < 0 and price < price_open):
+                price = price_open
+
+        elif order.stop_reached:
+            price = order.stop
+            # If the buy stop price is below the open price, the order was triggered at the open price
+            # If the sell stop price is above the open price, the order was triggered at the open price
+            if (order.amount > 0 and price < price_open) or (order.amount < 0 and price > price_open):
+                price = price_open
+
         shares_to_fill = min(abs(order.open_amount),
                              max_volume - self.volume_for_bar)
 

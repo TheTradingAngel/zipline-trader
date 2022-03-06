@@ -108,21 +108,26 @@ class Order(object):
         obj = zp.Order(initial_values=pydict)
         return obj
 
-    def check_triggers(self, price, dt):
+    def check_triggers(self, high, low, close, dt):
         """
         Update internal state based on price triggers and the
         trade event's price.
         """
-        stop_reached, limit_reached, sl_stop_reached = \
-            self.check_order_triggers(price)
-        if (stop_reached, limit_reached) \
-                != (self.stop_reached, self.limit_reached):
-            self.dt = dt
-        self.stop_reached = stop_reached
-        self.limit_reached = limit_reached
-        if sl_stop_reached:
-            # Change the STOP LIMIT order into a LIMIT order
-            self.stop = None
+
+        for price in [high, low, close]:
+            stop_reached, limit_reached, sl_stop_reached = \
+                self.check_order_triggers(price)
+            if (stop_reached, limit_reached) \
+                    != (self.stop_reached, self.limit_reached):
+                self.dt = dt
+            self.stop_reached = stop_reached
+            self.limit_reached = limit_reached
+            if sl_stop_reached:
+                # Change the STOP LIMIT order into a LIMIT order
+                self.stop = None
+
+            if self.triggered:
+                break
 
     def check_order_triggers(self, current_price):
         """
